@@ -81,23 +81,26 @@ def create_scenes(game_manager, scene_manager, resource_manager):
     try:
         # 创建场景
         main_menu = MainMenu(game_manager.screen_width, game_manager.screen_height)
-        character_select = CharacterSelect(game_manager.screen_width, game_manager.screen_height)
         shop = Shop(game_manager.screen_width, game_manager.screen_height)
         game_scene = GameScene(game_manager.screen_width, game_manager.screen_height)
         print("所有场景创建成功")
         
         # 注册场景
         scene_manager.register_scene("main_menu", main_menu)
-        scene_manager.register_scene("character_select", character_select)
         scene_manager.register_scene("shop", shop)
         scene_manager.register_scene("game", game_scene)
         print("场景注册完成")
         
         # 设置主菜单回调
         def start_game():
-            game_manager.change_state(GameState.CHARACTER_SELECT)
-            scene_manager.switch_scene("character_select")
-            print("切换到角色选择界面")
+            # 直接使用士兵作为默认角色
+            from entities.soldier import Soldier
+            game_scene.set_player_class(Soldier)
+            game_scene.initialize()
+            game_manager.change_state(GameState.PLAYING)
+            scene_manager.switch_scene("game")
+            resource_manager.play_music("battle_bgm", loop=True)
+            print("开始游戏，使用士兵角色")
         
         def open_shop():
             game_manager.change_state(GameState.SHOPPING)
@@ -110,21 +113,11 @@ def create_scenes(game_manager, scene_manager, resource_manager):
         
         main_menu.set_callback("new_game", start_game)
         main_menu.set_callback("continue", lambda: scene_manager.switch_scene("game"))
+        main_menu.set_callback("shop", open_shop)
         main_menu.set_callback("quit", quit_game)
         print("主菜单回调设置完成")
         
-        # 设置角色选择回调
-        def on_character_select(player_class):
-            # 设置游戏场景的玩家类型
-            game_scene.set_player_class(player_class)
-            # 初始化游戏场景
-            game_scene.initialize()
-            # 切换到游戏场景并播放战斗音乐
-            game_manager.change_state(GameState.PLAYING)
-            scene_manager.switch_scene("game")
-            resource_manager.play_music("battle_bgm", loop=True)
-            print(f"选择角色 {player_class.__name__}，开始游戏")
-        
+        # 设置商店回调
         def back_to_menu():
             game_manager.change_state(GameState.MAIN_MENU)
             scene_manager.switch_scene("main_menu")
@@ -132,10 +125,6 @@ def create_scenes(game_manager, scene_manager, resource_manager):
             resource_manager.play_music("menu_bgm", loop=True)
             print("返回主菜单")
         
-        character_select.set_callbacks(on_character_select, back_to_menu)
-        print("角色选择回调设置完成")
-        
-        # 设置商店回调
         shop.back_button.callback = back_to_menu
         print("商店回调设置完成")
         

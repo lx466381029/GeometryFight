@@ -26,9 +26,6 @@
 ### Character System
 #### Player
 - 基础角色类
-- 士兵（Soldier）
-- 突击手（Assault）
-- 炮兵（Artillery）
 - 角色属性系统
 - 技能系统
 

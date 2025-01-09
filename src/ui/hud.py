@@ -9,34 +9,49 @@ class HUD(Scene, UIElement):
         UIElement.__init__(self, 0, 0, screen_width, screen_height)
         
         # 创建状态面板
-        self.status_panel = Panel(10, 10, 200, 100)
+        panel_width = 300
+        panel_height = 150
+        self.status_panel = Panel(
+            20, 20,
+            panel_width, panel_height,
+            color=(50, 50, 50, 200)
+        )
         self.add_child(self.status_panel)
         
-        # 创建状态标签和进度条
-        self.health_label = Label(20, 20, "生命值: 100/100", bold=True)
-        self.health_bar = ProgressBar(20, 45, 180, 15, 
-                                    fill_color=(255, 0, 0))
+        # 创建角色信息标签
+        self.character_label = Label(
+            30, 30,
+            "角色：士兵",
+            32,
+            bold=True
+        )
+        self.status_panel.add_child(self.character_label)
         
-        self.exp_label = Label(20, 70, "经验值: 0/100", bold=True)
-        self.exp_bar = ProgressBar(20, 95, 180, 15, 
-                                 fill_color=(0, 255, 255))
-        
-        # 添加到状态面板
+        # 创建生命值标签和进度条
+        self.health_label = Label(30, 70, "生命值: 100/100", 24)
+        self.health_bar = ProgressBar(30, 100, 260, 20, (255, 0, 0))
         self.status_panel.add_child(self.health_label)
         self.status_panel.add_child(self.health_bar)
+        
+        # 创建经验值标签和进度条
+        self.exp_label = Label(30, 130, "经验值: 0/100", 24)
+        self.exp_bar = ProgressBar(30, 160, 260, 20, (0, 255, 0))
         self.status_panel.add_child(self.exp_label)
         self.status_panel.add_child(self.exp_bar)
         
-        # 创建得分和资源面板
-        self.resource_panel = Panel(screen_width - 210, 10, 200, 100)
+        # 创建资源面板
+        self.resource_panel = Panel(
+            screen_width - 220, 20,
+            200, 120,
+            color=(50, 50, 50, 200)
+        )
         self.add_child(self.resource_panel)
         
         # 创建资源标签
-        self.score_label = Label(screen_width - 200, 20, "得分: 0", bold=True)
-        self.fragment_label = Label(screen_width - 200, 50, "碎片: 0", bold=True)
-        self.star_label = Label(screen_width - 200, 80, "星星: 0", bold=True)
+        self.score_label = Label(screen_width - 210, 30, "得分: 0", 24)
+        self.fragment_label = Label(screen_width - 210, 60, "碎片: 0", 24)
+        self.star_label = Label(screen_width - 210, 90, "星星: 0", 24)
         
-        # 添加到资源面板
         self.resource_panel.add_child(self.score_label)
         self.resource_panel.add_child(self.fragment_label)
         self.resource_panel.add_child(self.star_label)
@@ -53,6 +68,16 @@ class HUD(Scene, UIElement):
     def set_player(self, player: Player):
         """设置要监控的玩家"""
         self.player = player
+        # 更新角色标签
+        character_names = {
+            'Soldier': '士兵',
+            'Assault': '突击手',
+            'Artillery': '炮兵',
+            'Tank': '坦克',
+            'Sniper': '狙击手'
+        }
+        character_name = character_names.get(player.__class__.__name__, player.__class__.__name__)
+        self.character_label.set_text(f"角色：{character_name}")
         print(f"HUD设置玩家: {player.__class__.__name__}")
     
     def update(self):
