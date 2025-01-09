@@ -24,106 +24,192 @@ class Enemy(Character):
         self.behavior_timer = 0
         self.behavior_change_interval = 2000  # 2秒改变一次行为
         self.current_behavior = "idle"
-        self.wander_direction: Tuple[float, float] = (0, 0)
+        self.wander_direction = (0, 0)
         
-        # 颜色（用于渲染）
-        self.color = (255, 0, 0)  # 默认红色
+        # 子弹列表
+        self.bullets = []
+        
+        # 创建敌人图像
+        self.color = (255, 0, 0)  # 敌人是红色
+        self._create_enemy_image()
+        
+        print(f"敌人初始化完成: {self.__class__.__name__}")
+    
+    def _create_enemy_image(self):
+        """创建敌人图像"""
+        try:
+            # 创建一个带有透明度的表面
+            image = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+            
+            # 绘制一个五边形作为敌人图像
+            center_x = self.width / 2
+            center_y = self.height / 2
+            radius = min(self.width, self.height) / 2 - 2
+            points = []
+            
+            for i in range(5):
+                angle = math.pi * 2 / 5 * i - math.pi / 2
+                x = center_x + radius * math.cos(angle)
+                y = center_y + radius * math.sin(angle)
+                points.append((x, y))
+            
+            # 绘制填充的五边形
+            pygame.draw.polygon(image, self.color, points)
+            # 绘制边框
+            pygame.draw.polygon(image, (255, 255, 255), points, 2)
+            
+            # 绘制一个小圆表示"眼睛"
+            eye_pos = (center_x, center_y - radius // 2)
+            pygame.draw.circle(image, (255, 255, 0), eye_pos, 3)
+            
+            self.set_image(image)
+            print(f"为敌人 {self.__class__.__name__} 创建图像")
+        
+        except Exception as e:
+            print(f"创建敌人图像时发生错误: {e}")
+            import traceback
+            traceback.print_exc()
     
     def update(self):
         """更新敌人状态"""
         super().update()
         
+        # 更新子弹
+        for bullet in self.bullets[:]:
+            bullet.update()
+            if not bullet.is_active:
+                self.bullets.remove(bullet)
+        
         # 更新AI行为
         current_time = pygame.time.get_ticks()
         if current_time - self.behavior_timer >= self.behavior_change_interval:
+            self._change_behavior()
             self.behavior_timer = current_time
-            self.choose_behavior()
         
         # 执行当前行为
-        self.execute_behavior()
+        if self.current_behavior == "chase" and self.target:
+            self._chase_target()
+        elif self.current_behavior == "wander":
+            self._wander()
+        elif self.current_behavior == "attack" and self.target:
+            self._attack_target()
     
-    def choose_behavior(self):
-        """选择行为"""
+    def _change_behavior(self):
+        """改变AI行为"""
         if not self.target:
             self.current_behavior = "wander"
             return
         
-        distance = self.get_distance_to_target()
+        # 计算与目标的距离
+        dx = self.target.x - self.x
+        dy = self.target.y - self.y
+        distance = math.sqrt(dx * dx + dy * dy)
         
+        # 根据距离选择行为
         if distance <= self.attack_range:
             self.current_behavior = "attack"
         elif distance <= self.detection_range:
             self.current_behavior = "chase"
         else:
             self.current_behavior = "wander"
-        
-        if self.current_behavior == "wander":
             # 随机选择一个漫游方向
-            angle = random.uniform(0, 2 * math.pi)
+            angle = random.uniform(0, math.pi * 2)
             self.wander_direction = (math.cos(angle), math.sin(angle))
     
-    def execute_behavior(self):
-        """执行当前行为"""
-        if self.current_behavior == "wander":
-            self.move(self.wander_direction[0], self.wander_direction[1])
-        elif self.current_behavior == "chase" and self.target:
-            direction = self.get_direction_to_target()
-            self.move(direction[0], direction[1])
-        elif self.current_behavior == "attack" and self.target:
-            self.attack()
-            direction = self.get_direction_to_target()
-            self.set_rotation(math.degrees(math.atan2(direction[1], direction[0])))
-    
-    def get_distance_to_target(self) -> float:
-        """获取到目标的距离"""
+    def _chase_target(self):
+        """追逐目标"""
         if not self.target:
-            return float('inf')
+            return
         
-        target_x, target_y = self.target.get_center()
-        center_x, center_y = self.get_center()
-        dx = target_x - center_x
-        dy = target_y - center_y
-        return math.sqrt(dx * dx + dy * dy)
-    
-    def get_direction_to_target(self) -> Tuple[float, float]:
-        """获取指向目标的单位向量"""
-        if not self.target:
-            return (0, 0)
-        
-        target_x, target_y = self.target.get_center()
-        center_x, center_y = self.get_center()
-        dx = target_x - center_x
-        dy = target_y - center_y
+        # 计算方向
+        dx = self.target.x - self.x
+        dy = self.target.y - self.y
         length = math.sqrt(dx * dx + dy * dy)
         
-        if length == 0:
-            return (0, 0)
+        if length > 0:
+            dx /= length
+            dy /= length
+            
+            # 移动
+            self.move(dx * self.get_speed(), dy * self.get_speed())
+            
+            # 更新朝向
+            angle = math.degrees(math.atan2(dy, dx))
+            self.set_rotation(angle)
+    
+    def _wander(self):
+        """漫游"""
+        if self.wander_direction == (0, 0):
+            angle = random.uniform(0, math.pi * 2)
+            self.wander_direction = (math.cos(angle), math.sin(angle))
         
-        return (dx / length, dy / length)
+        # 移动
+        self.move(
+            self.wander_direction[0] * self.get_speed() * 0.5,
+            self.wander_direction[1] * self.get_speed() * 0.5
+        )
+        
+        # 更新朝向
+        angle = math.degrees(math.atan2(self.wander_direction[1], 
+                                      self.wander_direction[0]))
+        self.set_rotation(angle)
+    
+    def _attack_target(self):
+        """攻击目标"""
+        if not self.target:
+            return
+        
+        # 计算朝向目标的角度
+        dx = self.target.x - self.x
+        dy = self.target.y - self.y
+        angle = math.degrees(math.atan2(dy, dx))
+        self.set_rotation(angle)
+        
+        # 尝试攻击
+        if self.can_attack():
+            self.attack()
     
     def render(self, screen: pygame.Surface):
-        """渲染敌人"""
-        if self.image:
-            super().render(screen)
-        else:
-            # 如果没有图像，绘制一个有颜色的矩形
-            pygame.draw.rect(screen, self.color, self.rect)
+        """渲染敌人和子弹"""
+        # 渲染子弹
+        for bullet in self.bullets:
+            bullet.render(screen)
+        
+        # 渲染敌人
+        super().render(screen)
+        
+        # 绘制血条
+        health_width = self.width
+        health_height = 4
+        health_x = self.x
+        health_y = self.y - 10
+        
+        # 血条背景
+        pygame.draw.rect(screen, (64, 64, 64),
+                        pygame.Rect(health_x, health_y, health_width, health_height))
+        
+        # 当前血量
+        current_health_width = int(health_width * (self.health / self.max_health))
+        pygame.draw.rect(screen, (255, 0, 0),
+                        pygame.Rect(health_x, health_y, current_health_width, health_height))
     
-    def on_death(self):
-        """处理死亡事件"""
-        # 处理掉落物
-        drops = {
-            "fragments": 0,
-            "stars": 0
-        }
+    def die(self):
+        """敌人死亡"""
+        super().die()
         
+        if not self.target:
+            return
+        
+        # 增加玩家得分
+        if hasattr(self.target, 'add_score'):
+            self.target.add_score(self.score_value)
+        
+        # 随机掉落碎片
         if random.random() < self.fragment_drop_chance:
-            drops["fragments"] = self.fragment_drop_amount
+            if hasattr(self.target, 'add_fragments'):
+                self.target.add_fragments(self.fragment_drop_amount)
         
+        # 随机掉落星星
         if random.random() < self.star_drop_chance:
-            drops["stars"] = self.star_drop_amount
-        
-        return {
-            "score": self.score_value,
-            "drops": drops
-        } 
+            if hasattr(self.target, 'add_stars'):
+                self.target.add_stars(self.star_drop_amount) 

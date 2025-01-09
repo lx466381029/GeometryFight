@@ -1,11 +1,11 @@
 import pygame
 from typing import Dict, Callable, Optional, Type
-from src.ui.ui_element import UIElement, Button, Label, Panel
-from src.entities.player import Player
-from src.entities.soldier import Soldier
-from src.entities.assault import Assault
-from src.entities.artillery import Artillery
-from src.scene_manager import Scene
+from ui.ui_element import UIElement, Button, Label, Panel
+from entities.player import Player
+from entities.soldier import Soldier
+from entities.assault import Assault
+from entities.artillery import Artillery
+from scene_manager import Scene
 
 class CharacterCard(Panel):
     """角色信息卡片"""

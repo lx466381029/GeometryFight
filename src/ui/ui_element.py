@@ -14,7 +14,11 @@ class UIElement:
         font_type = 'bold' if bold else 'regular'
         if size not in UIElement._fonts[font_type]:
             font_path = "assets/fonts/SourceHanSans-Bold.ttc" if bold else "assets/fonts/SourceHanSans-Regular.ttc"
-            UIElement._fonts[font_type][size] = pygame.font.Font(font_path, size)
+            try:
+                UIElement._fonts[font_type][size] = pygame.font.Font(font_path, size)
+            except Exception as e:
+                # 创建一个默认字体作为后备
+                UIElement._fonts[font_type][size] = pygame.font.SysFont(None, size)
         return UIElement._fonts[font_type][size]
     
     def __init__(self, x: int, y: int, width: int, height: int):
@@ -68,6 +72,7 @@ class UIElement:
         if not self.visible:
             return
         
+        # 渲染子元素
         for child in self.children:
             child.render(screen)
     
@@ -107,6 +112,9 @@ class Button(UIElement):
         # 创建文本
         self.font = self.get_font(24, bold=True)  # 使用粗体
         self._update_text_surface()
+        
+        # 创建按钮surface
+        self.surface = pygame.Surface((width, height), pygame.SRCALPHA)
     
     def _update_text_surface(self):
         """更新文本表面"""
@@ -153,18 +161,30 @@ class Button(UIElement):
         else:
             color = self.normal_color
         
+        # 清空surface
+        self.surface.fill((0, 0, 0, 0))
+        
         # 绘制按钮背景
-        pygame.draw.rect(screen, color, self.rect)
+        pygame.draw.rect(self.surface, color, 
+                        pygame.Rect(0, 0, self.width, self.height))
         
         # 绘制边框
         border_color = (200, 200, 200) if self.enabled else (100, 100, 100)
-        pygame.draw.rect(screen, border_color, self.rect, 2)
+        pygame.draw.rect(self.surface, border_color, 
+                        pygame.Rect(0, 0, self.width, self.height), 2)
+        
+        # 更新文本位置
+        text_rect = self.text_surface.get_rect(center=(self.width // 2, self.height // 2))
         
         # 绘制文本
-        screen.blit(self.text_surface, self.text_rect)
+        self.surface.blit(self.text_surface, text_rect)
+        
+        # 将按钮surface绘制到屏幕上
+        screen.blit(self.surface, self.rect)
         
         # 渲染子元素
-        super().render(screen)
+        for child in self.children:
+            child.render(screen)
 
 class Label(UIElement):
     def __init__(self, x: int, y: int, text: str, font_size: int = 24, 
@@ -175,14 +195,18 @@ class Label(UIElement):
         self.color = color
         self.font_size = font_size
         self.bold = bold
-        self.text_surface = self.font.render(text, True, color)
+        self._update_text_surface()
         super().__init__(x, y, self.text_surface.get_width(), 
                         self.text_surface.get_height())
+    
+    def _update_text_surface(self):
+        """更新文本表面"""
+        self.text_surface = self.font.render(self.text, True, self.color)
     
     def set_text(self, text: str):
         """更新文本内容"""
         self.text = text
-        self.text_surface = self.font.render(text, True, self.color)
+        self._update_text_surface()
         self.width = self.text_surface.get_width()
         self.height = self.text_surface.get_height()
         self.rect.width = self.width
@@ -194,60 +218,80 @@ class Label(UIElement):
             return
         
         screen.blit(self.text_surface, self.rect)
-        super().render(screen)
+        
+        # 渲染子元素
+        for child in self.children:
+            child.render(screen)
 
 class Panel(UIElement):
     def __init__(self, x: int, y: int, width: int, height: int, 
-                 color: Tuple[int, int, int] = (50, 50, 50, 200)):
+                 color: Tuple[int, int, int, int] = (50, 50, 50, 200)):
         super().__init__(x, y, width, height)
         self.color = color
+        # 创建带Alpha通道的surface
         self.surface = pygame.Surface((width, height), pygame.SRCALPHA)
+        # 预先填充颜色
+        pygame.draw.rect(self.surface, self.color, 
+                        pygame.Rect(0, 0, width, height))
     
     def render(self, screen: pygame.Surface):
         """渲染面板"""
         if not self.visible:
             return
         
-        # 绘制半透明背景
-        pygame.draw.rect(self.surface, self.color, 
-                        pygame.Rect(0, 0, self.width, self.height))
+        # 将surface绘制到屏幕上
         screen.blit(self.surface, self.rect)
         
         # 渲染子元素
-        super().render(screen)
+        for child in self.children:
+            child.render(screen)
 
 class ProgressBar(UIElement):
     def __init__(self, x: int, y: int, width: int, height: int, 
-                 bg_color: Tuple[int, int, int] = (50, 50, 50),
-                 fill_color: Tuple[int, int, int] = (0, 255, 0)):
+                 fill_color: Tuple[int, int, int] = (0, 255, 0),
+                 background_color: Tuple[int, int, int] = (50, 50, 50),
+                 border_color: Tuple[int, int, int] = (200, 200, 200)):
         super().__init__(x, y, width, height)
-        self.bg_color = bg_color
         self.fill_color = fill_color
-        self.progress = 1.0  # 0.0 到 1.0
+        self.background_color = background_color
+        self.border_color = border_color
+        self.progress = 1.0  # 0.0 到 1.0 之间的值
+        
+        # 创建surface
+        self.surface = pygame.Surface((width, height), pygame.SRCALPHA)
+        
+        print(f"创建进度条 - 位置: ({x}, {y}) 大小: {width}x{height}")
     
     def set_progress(self, value: float):
-        """设置进度值（0.0到1.0）"""
+        """设置进度值（0.0 到 1.0 之间）"""
         self.progress = max(0.0, min(1.0, value))
+        print(f"进度条更新: {self.progress:.2%}")
     
     def render(self, screen: pygame.Surface):
         """渲染进度条"""
         if not self.visible:
             return
         
+        # 清空surface
+        self.surface.fill((0, 0, 0, 0))
+        
         # 绘制背景
-        pygame.draw.rect(screen, self.bg_color, self.rect)
+        pygame.draw.rect(self.surface, self.background_color, 
+                        pygame.Rect(0, 0, self.width, self.height))
         
         # 绘制进度
         if self.progress > 0:
-            fill_rect = pygame.Rect(
-                self.x,
-                self.y,
-                int(self.width * self.progress),
-                self.height
-            )
-            pygame.draw.rect(screen, self.fill_color, fill_rect)
+            fill_width = int(self.width * self.progress)
+            pygame.draw.rect(self.surface, self.fill_color,
+                           pygame.Rect(0, 0, fill_width, self.height))
         
         # 绘制边框
-        pygame.draw.rect(screen, (200, 200, 200), self.rect, 2)
+        pygame.draw.rect(self.surface, self.border_color,
+                        pygame.Rect(0, 0, self.width, self.height), 2)
         
-        super().render(screen) 
+        # 将surface绘制到屏幕上
+        screen.blit(self.surface, self.rect)
+        
+        # 渲染子元素
+        for child in self.children:
+            child.render(screen) 

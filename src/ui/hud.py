@@ -1,8 +1,8 @@
 import pygame
 from typing import Optional
-from src.ui.ui_element import UIElement, Label, ProgressBar, Panel
-from src.entities.player import Player
-from src.scene_manager import Scene
+from ui.ui_element import UIElement, Label, ProgressBar, Panel
+from entities.player import Player
+from scene_manager import Scene
 
 class HUD(Scene, UIElement):
     def __init__(self, screen_width: int, screen_height: int):
@@ -43,6 +43,8 @@ class HUD(Scene, UIElement):
         
         # 玩家引用
         self.player: Optional[Player] = None
+        
+        print("HUD初始化完成")
     
     def initialize(self):
         """初始化场景"""
@@ -51,6 +53,7 @@ class HUD(Scene, UIElement):
     def set_player(self, player: Player):
         """设置要监控的玩家"""
         self.player = player
+        print(f"HUD设置玩家: {player.__class__.__name__}")
     
     def update(self):
         """更新HUD显示的信息"""
@@ -63,7 +66,7 @@ class HUD(Scene, UIElement):
             self.health_bar.set_progress(self.player.health / self.player.max_health)
             
             # 更新经验值
-            exp_needed = self.player.exp_needed_for_level()
+            exp_needed = self.player.experience_to_next_level
             exp_text = f"经验值: {self.player.experience}/{exp_needed}"
             self.exp_label.set_text(exp_text)
             self.exp_bar.set_progress(self.player.experience / exp_needed)
@@ -72,6 +75,12 @@ class HUD(Scene, UIElement):
             self.score_label.set_text(f"得分: {self.player.score}")
             self.fragment_label.set_text(f"碎片: {self.player.fragments}")
             self.star_label.set_text(f"星星: {self.player.stars}")
+            
+            print(f"HUD更新 - 生命值: {int(self.player.health)}/{int(self.player.max_health)} " +
+                  f"经验值: {self.player.experience}/{exp_needed} " +
+                  f"得分: {self.player.score} " +
+                  f"碎片: {self.player.fragments} " +
+                  f"星星: {self.player.stars}")
     
     def render(self, screen: pygame.Surface):
         """渲染HUD"""

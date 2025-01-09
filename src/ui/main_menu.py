@@ -1,126 +1,89 @@
 import pygame
-import json
-import os
 from typing import Dict, Callable
-from src.ui.ui_element import UIElement, Button, Label, Panel
-from src.ui.dialog import Dialog
-from src.scene_manager import Scene
-from src.resource_manager import ResourceManager
-from src.save_manager import SaveManager
+from ui.ui_element import UIElement, Button, Label, Panel
+from ui.dialog import Dialog
+from scene_manager import Scene
+from resource_manager import ResourceManager
+from save_manager import SaveManager
 
-class MainMenu(Scene, UIElement):
+class MainMenu(Scene):
+    """主菜单场景"""
     def __init__(self, screen_width: int, screen_height: int):
-        UIElement.__init__(self, 0, 0, screen_width, screen_height)
+        # 创建UI根节点
+        self.ui_root = Panel(0, 0, screen_width, screen_height)
         
         # 创建标题
-        title_label = Label(
-            screen_width // 2 - 200,  # 调整X坐标
-            100,
+        title = Label(
+            screen_width // 2 - 200,  # 向左移动以居中
+            screen_height // 4,       # 移到屏幕1/4处
             "几何战斗",
-            72,  # 增大字体大小
-            bold=True,
-            color=(255, 255, 255)  # 设置为白色
+            96,                       # 增大字号
+            bold=True
         )
-        self.add_child(title_label)
+        self.ui_root.add_child(title)
         
-        # 创建主菜单面板
-        panel_width = 300
-        panel_height = 400
-        menu_panel = Panel(
-            screen_width // 2 - panel_width // 2,
-            200,
-            panel_width,
-            panel_height,
-            color=(50, 50, 50, 200)  # 半透明深灰色
-        )
-        self.add_child(menu_panel)
-        
-        # 创建按钮
+        # 按钮设置
         button_width = 200
         button_height = 50
-        button_spacing = 30  # 按钮之间的间距
-        button_x = screen_width // 2 - button_width // 2
-        start_y = 250
+        button_spacing = 30
+        start_y = screen_height // 2  # 从屏幕中间开始放置按钮
         
-        self.buttons: Dict[str, Button] = {}
-        
-        # 新游戏按钮
-        self.buttons['new_game'] = Button(
-            button_x,
-            start_y,
-            button_width,
-            button_height,
-            "开始新游戏",
-            lambda: self.on_button_click('new_game')
-        )
-        
-        # 继续游戏按钮
-        self.buttons['continue'] = Button(
-            button_x,
-            start_y + button_height + button_spacing,
-            button_width,
-            button_height,
-            "继续游戏",
-            lambda: self.on_button_click('continue')
-        )
-        
-        # 退出按钮
-        self.buttons['quit'] = Button(
-            button_x,
-            start_y + (button_height + button_spacing) * 2,
-            button_width,
-            button_height,
-            "退出游戏",
-            lambda: self.on_button_click('quit')
-        )
-        
-        # 添加按钮到面板
-        for button in self.buttons.values():
-            menu_panel.add_child(button)
+        # 创建按钮
+        self.buttons = {}
+        button_configs = [
+            ('new_game', '新游戏'),
+            ('continue', '继续游戏'),
+            ('shop', '商店'),
+            ('quit', '退出')
+        ]
         
         # 回调函数字典
-        self.callbacks: Dict[str, Callable[[], None]] = {}
+        self.callbacks = {}
+        
+        def create_button_callback(name: str):
+            return lambda: self.on_button_click(name)
+        
+        for i, (name, text) in enumerate(button_configs):
+            button = Button(
+                screen_width // 2 - button_width // 2,
+                start_y + i * (button_height + button_spacing),
+                button_width,
+                button_height,
+                text,
+                create_button_callback(name)  # 为每个按钮创建独立的回调函数
+            )
+            self.buttons[name] = button
+            self.ui_root.add_child(button)
+        
+        # 创建确认对话框
+        self.confirm_dialog = Dialog(
+            screen_width // 2 - 200,
+            screen_height // 2 - 100,
+            400,
+            200,
+            "确认",
+            "当前存在游戏存档，是否开始新游戏？\n这将覆盖现有存档。",
+            self._on_new_game_confirmed,
+            self._on_new_game_cancelled
+        )
+        self.ui_root.add_child(self.confirm_dialog)
+        
+        # 存档管理器
+        self.save_manager = SaveManager()
+        self.has_save = False
         
         # 资源管理器
         self.resource_manager = ResourceManager()
         
-        # 存档管理器
-        self.save_manager = SaveManager()
-        
-        # 检查存档状态
-        self.has_save = self.save_manager.save_exists()
-        
-        # 更新按钮状态
-        self._update_button_states()
-        
-        # 创建确认对话框
-        dialog_width = 400
-        dialog_height = 200
-        dialog_x = screen_width // 2 - dialog_width // 2
-        dialog_y = screen_height // 2 - dialog_height // 2
-        
-        self.confirm_dialog = Dialog(
-            dialog_x,
-            dialog_y,
-            dialog_width,
-            dialog_height,
-            "确认新游戏",
-            "已存在存档，开始新游戏将覆盖现有存档。\n是否继续？",
-            self._on_new_game_confirmed,
-            self._on_new_game_cancelled
-        )
-        self.confirm_dialog.visible = False
-        self.add_child(self.confirm_dialog)
+        print("主菜单初始化完成")
     
     def initialize(self):
         """初始化场景"""
-        # 检查存档状态并更新按钮
         self.has_save = self.save_manager.save_exists()
         self._update_button_states()
     
     def _update_button_states(self):
         """更新按钮状态"""
-        # 继续游戏按钮只在有存档时可用
         self.buttons['continue'].enabled = self.has_save
     
     def set_callback(self, button_name: str, callback: Callable[[], None]):
@@ -139,7 +102,6 @@ class MainMenu(Scene, UIElement):
     def on_button_click(self, button_name: str):
         """处理按钮点击"""
         if button_name == 'new_game' and self.has_save:
-            # 如果已有存档，显示确认对话框
             self.confirm_dialog.show()
             return
         
@@ -148,19 +110,16 @@ class MainMenu(Scene, UIElement):
     
     def handle_event(self, event: pygame.event.Event):
         """处理事件"""
-        if self.confirm_dialog.visible:
-            self.confirm_dialog.handle_event(event)
-        else:
-            super().handle_event(event)
+        self.ui_root.handle_event(event)
     
     def update(self):
         """更新主菜单"""
-        super().update()
+        self.ui_root.update()
     
     def render(self, screen: pygame.Surface):
         """渲染主菜单"""
         # 绘制背景
-        screen.fill((30, 30, 30))  # 深灰色背景
+        screen.fill((30, 30, 30))
         
         # 渲染UI元素
-        super().render(screen) 
+        self.ui_root.render(screen) 

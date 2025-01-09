@@ -1,6 +1,6 @@
 import pygame
 from typing import Callable, Optional
-from src.ui.ui_element import UIElement, Button, Label, Panel
+from ui.ui_element import UIElement, Button, Label, Panel
 
 class Dialog(UIElement):
     """对话框组件"""

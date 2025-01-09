@@ -1,77 +1,67 @@
 from .player import Player
+from .bullet import PlayerBullet
 import pygame
 import math
 from typing import List, Optional
 
-class Bullet:
-    def __init__(self, x: float, y: float, dx: float, dy: float, speed: float, damage: float):
-        self.x = x
-        self.y = y
-        self.dx = dx
-        self.dy = dy
-        self.speed = speed
-        self.damage = damage
-        self.radius = 5  # 炮弹较大
-        self.is_active = True
-    
-    def update(self):
-        """更新子弹位置"""
-        self.x += self.dx * self.speed
-        self.y += self.dy * self.speed
-    
-    def render(self, screen: pygame.Surface):
-        """渲染子弹"""
-        pygame.draw.circle(screen, (255, 50, 50), (int(self.x), int(self.y)), self.radius)
-
-class Artillery(Player):
+class Sniper(Player):
     def __init__(self, x: float, y: float):
         super().__init__(x, y)
         
-        # 炮兵特有属性
+        # 狙击手特有属性
         self.max_health = 80   # 较低的生命值
         self.health = self.max_health
-        self.speed = 3.0      # 较慢的速度
-        self.damage = 30      # 高伤害
-        self.attack_speed = 1.0  # 较慢的攻击速度
+        self.speed = 4.0       # 较慢的速度
+        self.damage = 35       # 最高的伤害
+        self.attack_speed = 1.0  # 最慢的攻击速度
         
         # 子弹属性
-        self.bullet_speed = 8.0
-        self.bullets: List[Bullet] = []
+        self.bullet_speed = 20.0  # 最快的子弹速度
+        self.bullets: List[PlayerBullet] = []
         
-        # 技能：炮击
-        self.skill_cooldown = 12.0
-        self.skill_duration = 0.5
+        # 技能：瞄准
+        self.skill_cooldown = 8.0
+        self.skill_duration = 3.0
         self.skill_damage_bonus = 2.0  # 技能期间伤害翻倍
         self.skill_end_time: Optional[int] = None
         
-        # 创建炮兵图像
-        self._create_artillery_image()
+        # 创建狙击手图像
+        self._create_sniper_image()
     
-    def _create_artillery_image(self):
-        """创建炮兵的几何图形图像"""
-        image = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+    def _create_sniper_image(self):
+        """创建狙击手的几何图形图像"""
+        try:
+            # 创建一个带有透明度的表面
+            image = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+            
+            # 绘制一个红色菱形
+            center = (self.width // 2, self.height // 2)
+            radius = min(self.width, self.height) // 2 - 2
+            points = []
+            for i in range(4):
+                angle = math.pi * 2 / 4 * i - math.pi / 4
+                x = center[0] + radius * math.cos(angle)
+                y = center[1] + radius * math.sin(angle)
+                points.append((x, y))
+            
+            pygame.draw.polygon(image, (220, 20, 60), points)
+            pygame.draw.polygon(image, (255, 0, 0), points, 2)
+            
+            # 绘制一个小圆表示瞄准镜
+            scope_pos = (center[0], center[1] - radius + 6)
+            pygame.draw.circle(image, (200, 0, 0), scope_pos, 4)
+            pygame.draw.circle(image, (255, 0, 0), scope_pos, 4, 1)
+            
+            self.set_image(image)
+            print(f"为狙击手 {self.__class__.__name__} 创建图像")
         
-        # 绘制一个红色正方形
-        center = (self.width // 2, self.height // 2)
-        size = min(self.width, self.height) - 4
-        rect = pygame.Rect(
-            center[0] - size // 2,
-            center[1] - size // 2,
-            size,
-            size
-        )
-        
-        pygame.draw.rect(image, (200, 50, 50), rect)
-        pygame.draw.rect(image, (255, 100, 100), rect, 2)
-        
-        # 绘制一个小圆表示炮口
-        muzzle_pos = (center[0] + size // 2 - 2, center[1])
-        pygame.draw.circle(image, (255, 150, 150), muzzle_pos, 4)
-        
-        self.set_image(image)
+        except Exception as e:
+            print(f"创建狙击手图像时发生错误: {e}")
+            import traceback
+            traceback.print_exc()
     
     def update(self):
-        """更新炮兵状态"""
+        """更新狙击手状态"""
         super().update()
         
         # 更新技能状态
@@ -97,18 +87,19 @@ class Artillery(Player):
         # 创建子弹
         center_x, center_y = self.get_center()
         dx, dy = self.get_direction()
-        bullet = Bullet(
+        bullet = PlayerBullet(
             center_x, 
             center_y, 
             dx, 
             dy, 
             self.bullet_speed,
-            self.get_damage()
+            self.get_damage(),
+            "sniper"
         )
         self.bullets.append(bullet)
     
     def use_skill(self):
-        """使用技能：炮击"""
+        """使用技能：瞄准"""
         if not self.is_skill_ready:
             return
         
@@ -126,12 +117,13 @@ class Artillery(Player):
         self.skill_end_time = None
     
     def render(self, screen: pygame.Surface):
-        """渲染炮兵和子弹"""
-        super().render(screen)
-        
+        """渲染狙击手和子弹"""
         # 渲染子弹
         for bullet in self.bullets:
             bullet.render(screen)
+        
+        # 渲染狙击手
+        super().render(screen)
     
     def level_up(self):
         """升级效果"""
@@ -140,5 +132,5 @@ class Artillery(Player):
         # 提升基础属性
         self.max_health += 6
         self.health = self.max_health
-        self.damage += 4
-        self.attack_speed += 0.05 
+        self.damage += 3.5
+        self.attack_speed += 0.08 

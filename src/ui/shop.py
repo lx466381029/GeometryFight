@@ -1,8 +1,8 @@
 import pygame
 from typing import Dict, List, Callable, Optional
-from src.ui.ui_element import UIElement, Button, Label, Panel
-from src.entities.player import Player
-from src.scene_manager import Scene
+from ui.ui_element import UIElement, Button, Label, Panel
+from entities.player import Player
+from scene_manager import Scene
 
 class ShopItem:
     """商店物品"""
